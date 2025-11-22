@@ -1,0 +1,25 @@
+CREATE TABLE guilds(
+	GuildID BIGINT(19) NOT NULL,
+	WhitelistEnabled BOOLEAN DEFAULT FALSE,
+    WhitelistedChannels VARCHAR(120),
+    PRIMARY KEY(GuildID)
+);
+
+CREATE TABLE users(
+	UserID BIGINT(19) NOT NULL,
+	TimeZone FLOAT(3),
+    PRIMARY KEY(UserID)
+);
+
+CREATE TABLE attempts(
+	AttemptID BIGINT(19) NOT NULL AUTO_INCREMENT,
+	Year SMALLINT(4) NOT NULL,
+	LossDate DATE,
+	LossReason VARCHAR(256),
+	UserID BIGINT(19),
+    PRIMARY KEY(AttemptID)
+);
+
+
+ALTER TABLE attempts
+ADD FOREIGN KEY(UserID) REFERENCES users(UserID);
