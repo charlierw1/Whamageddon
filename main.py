@@ -167,9 +167,11 @@ async def toggle(interaction: discord.Interaction):
 @app_commands.describe(channel_id="Channel ID of Whitelisted Channel")
 async def whitelistAdd(interaction: discord.Interaction, channel_id: str):
     GuildID = interaction.guild.id
-    if len(channel_id) != 19:
+    if len(channel_id) < 20:
         await interaction.response.send_message("Invalid Channel ID (19 characters required)")
         return
+    if client.get_channel(channel_id) is None:
+        await interaction.response.send_message("Invalid Channel ID (channel doesn't exist)")
     raw_channels = db.getChannels(GuildID)[0]
     if raw_channels is not None:
         channels = loads(raw_channels)
@@ -178,7 +180,7 @@ async def whitelistAdd(interaction: discord.Interaction, channel_id: str):
     if channel_id in channels:
         await interaction.response.send_message("Channel already whitelisted.")
         return
-    if len(channels) > 4:
+    if len(channels) > 9:
         await interaction.response.send_message("Max whitelisted channels reached.")
         return
     else:

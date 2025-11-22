@@ -79,7 +79,7 @@ def insertAttempt(Year, UserID):
 def addLoss(Year, LossDate, LossReason, UserID):
     with conn.cursor() as cur:
         cur.execute(
-            "UPDATE attempts SET LossDate = ?, LossReason = ? WHERE UserID = ? AND Year = ?", 
+            "UPDATE attempts SET Lost = TRUE, LossDate = ?, LossReason = ? WHERE UserID = ? AND Year = ?", 
             (LossDate, LossReason, UserID, Year)
         )
         conn.commit()

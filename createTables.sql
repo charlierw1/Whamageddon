@@ -1,7 +1,15 @@
+CREATE TABLE years(
+	YearID SMALLINT(4) NOT NULL,
+	Active BOOLEAN DEFAULT FALSE,
+	Winners SMALLINT(6),
+	Losers SMALLING(6),
+	PRIMARY KEY(YearID)
+)
+
 CREATE TABLE guilds(
 	GuildID BIGINT(19) NOT NULL,
 	WhitelistEnabled BOOLEAN DEFAULT FALSE,
-    WhitelistedChannels VARCHAR(120),
+    WhitelistedChannels VARCHAR(210),
     PRIMARY KEY(GuildID)
 );
 
@@ -14,6 +22,7 @@ CREATE TABLE users(
 CREATE TABLE attempts(
 	AttemptID BIGINT(19) NOT NULL AUTO_INCREMENT,
 	Year SMALLINT(4) NOT NULL,
+	Lost BOOLEAN DEFAULT FALSE,
 	LossDate DATE,
 	LossReason VARCHAR(256),
 	UserID BIGINT(19),
