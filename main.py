@@ -14,6 +14,7 @@ token = "API-KEY"
 with open(tokenfile) as tf:
     token = tf.readline()
 intents = discord.Intents.default()
+intents.guilds = True
 intents.message_content = True
 
 client = commands.Bot(command_prefix = "yellglelelle", intents = intents)
@@ -24,8 +25,8 @@ https://discord.com/oauth2/authorize?client_id=1440842599521845309&permissions=2
 class CLI_Commands: #customise as needed
     help = "help"
     db_test = "dbtest"
+    nuke_tables = "nuke" #only for table changes really
     exit = "exit"
-    
 
 cmds = f"""
     {CLI_Commands.help} - List all commands
@@ -36,7 +37,14 @@ rulesmes = """```
 Whamageddon is a game where you have to go from the 1st to the 25th of December without hearing Last Christmas by Wham!
 Other covers of Last Christmas are completely fine!
 ```"""
+
+nowhitelist = "This channel is not whitelisted for use"
+
 currentYear = int(datetime.now().year)
+
+if db.getYear(currentYear) is None:
+    db.insertYear(currentYear)
+
 def cli_loop():
     sleep(5)
     while True: #not working but will find a way
@@ -50,9 +58,15 @@ def cli_loop():
                     db.closeConnection()
                     asyncio.run_coroutine_threadsafe(client.close(), client.loop)
                     exit()
-                case unknown_command:
-                    print("Unknown command, try 'help'\n\n") 
+                case _:
+                    print("Unknown command, try 'help'\n\n")
 
+def checkWhitelist(GuildID, ChannelID):
+    if not db.getToggle(GuildID):
+        return True
+    else:
+        channels = db.getChannels(GuildID)[0]
+        return str(ChannelID) in channels
 
 class WhamBot(commands.Bot):
     async def setup_hook(self):
@@ -75,7 +89,10 @@ async def on_ready():
 @client.tree.command(name="rules", description="Show the rules of Whamageddon")
 @app_commands.guilds(1132340472363368570)
 async def rules(interaction: discord.Interaction):
-    await interaction.response.send_message(rulesmes)
+    if checkWhitelist(interaction.guild.id, interaction.channel_id):
+        await interaction.response.send_message(rulesmes)
+    else:
+        await interaction.response.send_message(nowhitelist)
 
 @client.tree.command(name="join", description="Join this years Whamageddon")
 @app_commands.guilds(1132340472363368570)
@@ -110,19 +127,21 @@ async def rules(interaction: discord.Interaction):
 ]
 )
 async def join(interaction: discord.Interaction, timezone: app_commands.Choice[str]):
-
-    GuildID = interaction.guild.id
-    UserID = interaction.user.id
-    if not db.checkGuild(GuildID):
-        db.insertGuild(GuildID)
-    if not db.checkUser(UserID):
-        db.insertUser(UserID, timezone.value)
-    if not db.checkAttempt(currentYear, UserID):
-        db.insertAttempt(currentYear, UserID)
+    if checkWhitelist(interaction.guild.id, interaction.channel_id):
+        GuildID = interaction.guild.id
+        UserID = interaction.user.id
+        if not db.checkGuild(GuildID):
+            db.insertGuild(GuildID)
+        if not db.checkUser(UserID):
+            db.insertUser(UserID, timezone.value)
+        if not db.checkAttempt(currentYear, UserID):
+            db.insertAttempt(currentYear, UserID)
+        else:
+            await interaction.response.send_message(f"You have already joined Whamageddon {currentYear}!")
+            return
+        await interaction.response.send_message("You have successfully joined Whamageddon!")
     else:
-        await interaction.response.send_message(f"You have already joined Whamageddon {currentYear}!")
-        return
-    await interaction.response.send_message("You have successfully joined Whamageddon!")
+        await interaction.response.send_message(nowhitelist)
 
 @client.tree.command(
     name="out",
@@ -134,25 +153,25 @@ async def out(
     interaction: discord.Interaction,
     loss_reason: str
 ):
-    # Limit length manually
-    if len(loss_reason) > 200:  # max 200 characters
-        await interaction.response.send_message(
-            "Your loss reason is too long! Max 200 characters."
-        )
-        return
+    if checkWhitelist(interaction.guild.id, interaction.channel_id):
+        # Limit length manually
+        if len(loss_reason) > 200:  # max 200 characters
+            await interaction.response.send_message("Your loss reason is too long! Max 200 characters.")
+            return
+        GuildID = interaction.guild.id
+        UserID = interaction.user.id
 
-    GuildID = interaction.guild.id
-    UserID = interaction.user.id
+        if not db.checkGuild(GuildID):
+            db.insertGuild(GuildID)
 
-    if not db.checkGuild(GuildID):
-        db.insertGuild(GuildID)
+        if not db.checkAttempt(currentYear, UserID):
+            await interaction.response.send_message("You haven't done /join yet!")
+            return
 
-    if not db.checkAttempt(currentYear, UserID):
-        await interaction.response.send_message("You haven't done /join yet!")
-        return
-
-    db.addLoss(currentYear, date.today(), loss_reason, UserID)
-    await interaction.response.send_message(f"Loss recorded: {loss_reason}")
+        db.addLoss(currentYear, date.today(), loss_reason, UserID)
+        await interaction.response.send_message(f"Loss recorded: {loss_reason}")
+    else:
+        await interaction.response.send_message(nowhitelist)
 
 @client.tree.command(name="toggle", description="Toggle the whitelist for allowed channels (limited to 5)")
 @app_commands.checks.has_permissions(administrator=True)
@@ -167,16 +186,10 @@ async def toggle(interaction: discord.Interaction):
 @app_commands.describe(channel_id="Channel ID of Whitelisted Channel")
 async def whitelistAdd(interaction: discord.Interaction, channel_id: str):
     GuildID = interaction.guild.id
-    if len(channel_id) < 20:
-        await interaction.response.send_message("Invalid Channel ID (19 characters required)")
-        return
-    if client.get_channel(channel_id) is None:
-        await interaction.response.send_message("Invalid Channel ID (channel doesn't exist)")
-    raw_channels = db.getChannels(GuildID)[0]
-    if raw_channels is not None:
-        channels = loads(raw_channels)
-    else:
-        channels = []
+    if client.get_channel(int(channel_id)) is None:
+        print("FUUUUUUUUUUUUUUUUUUUUCK")
+        return await interaction.response.send_message("Invalid Channel ID (channel doesn't exist)")
+    channels = loads(db.getChannels(GuildID)[0])
     if channel_id in channels:
         await interaction.response.send_message("Channel already whitelisted.")
         return
@@ -195,9 +208,6 @@ async def whitelistAdd(interaction: discord.Interaction, channel_id: str):
 @app_commands.describe(channel_id="Channel ID of Whitelisted Channel")
 async def whitelistRemove(interaction: discord.Interaction, channel_id: str):
     GuildID = interaction.guild.id
-    if len(channel_id) != 19:
-        await interaction.response.send_message("Invalid Channel ID (19 characters required).")
-        return
     raw_channels = db.getChannels(GuildID)[0]
     if raw_channels is not None:
         channels = loads(raw_channels)
@@ -206,18 +216,31 @@ async def whitelistRemove(interaction: discord.Interaction, channel_id: str):
     if channel_id in channels:
         channels.remove(channel_id)
         db.setChannels(GuildID, dumps(channels))
-        await interaction.response.send_message(f"{channel_id} removed from whitelist.")
+        await interaction.response.send_message(f"{channel_id} removed from whitelist.", ephemeral=True)
         return
     else:
-        await interaction.response.send_message(f"{channel_id} isn't in the whitelist.")
+        await interaction.response.send_message(f"{channel_id} isn't in the whitelist.", ephemeral=True)
         return
 
 @client.tree.command(name="chart", description="Show a chart of the current state of Whamageddon in your Guild")
 @app_commands.guilds(1132340472363368570)
 async def chart(interaction: discord.Interaction):
-    await interaction.response.send_message("This dont do nothing yet")
+    if checkWhitelist(interaction.guild.id, interaction.channel_id):
+        await interaction.response.send_message("This dont do nothing yet")
+    else:
+        await interaction.response.send_message(nowhitelist)
+
+@client.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.CommandNotFound):
+        # Handle missing/unsynced commands
+        await interaction.response.send_message(
+            "This command is not available yet (might be syncing). Please try again later.",
+            ephemeral=True
+        )
+        return
+    # For other errors, you can log them
+    print(f"App command error: {error}")
 
 threading.Thread(target=cli_loop, daemon=True).start()
-
-
 client.run(token)

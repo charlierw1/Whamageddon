@@ -22,11 +22,16 @@ conn = mariadb.connect(
 # Test function
 # -----------------------
 def test():
-    example_id = input("Enter a Guild ID: ")
     with conn.cursor() as cur:
-        cur.execute("SELECT * FROM guilds WHERE GuildID=?", (example_id,))
+        cur.execute("SELECT * FROM guilds WHERE GuildID>0")
         for row in cur:
             print(row)
+
+   
+def getToggle(GuildID):
+    with conn.cursor() as cur:
+        cur.execute("SELECT WhitelistEnabled FROM guilds WHERE GuildID=?", (GuildID,))
+        return cur.fetchone()[0] == 1
 
 # -----------------------
 # Guild functions
@@ -63,7 +68,7 @@ def insertUser(UserID, TimeZone):
 def checkAttempt(Year, UserID):
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT * FROM attempts WHERE Year=? AND UserID=?",
+            "SELECT * FROM attempts WHERE YearID=? AND UserID=?",
             (Year, UserID)
         )
         return cur.fetchone() is not None
@@ -71,7 +76,7 @@ def checkAttempt(Year, UserID):
 def insertAttempt(Year, UserID):
     with conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO attempts (Year, UserID) VALUES (?, ?)",
+            "INSERT INTO attempts (YearID, UserID) VALUES (?, ?)",
             (Year, UserID)
         )
         conn.commit()
@@ -79,7 +84,7 @@ def insertAttempt(Year, UserID):
 def addLoss(Year, LossDate, LossReason, UserID):
     with conn.cursor() as cur:
         cur.execute(
-            "UPDATE attempts SET Lost = TRUE, LossDate = ?, LossReason = ? WHERE UserID = ? AND Year = ?", 
+            "UPDATE attempts SET Lost = TRUE, LossDate = ?, LossReason = ? WHERE UserID = ? AND YearID = ?", 
             (LossDate, LossReason, UserID, Year)
         )
         conn.commit()
@@ -114,6 +119,19 @@ def setChannels(GuildID, Channels):
         cur.execute(
                 "UPDATE guilds SET WhitelistedChannels = ? WHERE GuildID = ?", 
                 (Channels, GuildID)
+            )
+        conn.commit()
+
+def getYear(YearID):
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM years WHERE YearID=?", (YearID,))
+        return cur.fetchone()
+
+def insertYear(YearID):
+    with conn.cursor() as cur:
+        cur.execute(
+                "INSERT INTO years (YearID) VALUES (?)", 
+                (YearID,)
             )
         conn.commit()
 
