@@ -40,10 +40,15 @@ Other covers of Last Christmas are completely fine!
 
 nowhitelist = "This channel is not whitelisted for use"
 
-currentYear = int(datetime.now().year)
+today = datetime.now()
+currentYear = int(today.year)
 
-if db.getYear(currentYear) is None:
+if db.getYears(currentYear) is None:
     db.insertYear(currentYear)
+
+if today.month == 12 and today.day < 26:
+    db.setYears(currentYear, True)
+
 
 def cli_loop():
     sleep(5)
@@ -84,6 +89,7 @@ async def on_ready():
     print("We have logged in as {0.user} ".format(client)) 
     activity = discord.Activity(name="Not listening to hit christmas song 'Last Christmas' by Wham!", type=3)               # this is to writing prefix in playing a game.(optional)
     await client.change_presence(status=discord.Status.online, activity=activity) # this is for making the status as an online and writing prefix in playing a game.(optional)                   
+
 
 
 @client.tree.command(name="rules", description="Show the rules of Whamageddon")
@@ -234,10 +240,7 @@ async def chart(interaction: discord.Interaction):
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     if isinstance(error, app_commands.CommandNotFound):
         # Handle missing/unsynced commands
-        await interaction.response.send_message(
-            "This command is not available yet (might be syncing). Please try again later.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("This command is not available yet (might be syncing). Please try again later.", ephemeral=True)
         return
     # For other errors, you can log them
     print(f"App command error: {error}")
