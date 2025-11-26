@@ -43,6 +43,7 @@ nowhitelist = "This channel is not whitelisted for use"
 today = datetime.now()
 currentYear = int(today.year)
 
+
 if db.getYears(currentYear) is None:
     db.insertYear(currentYear)
 
@@ -133,11 +134,11 @@ async def rules(interaction: discord.Interaction):
 ]
 )
 async def join(interaction: discord.Interaction, timezone: app_commands.Choice[str]):
-    if checkWhitelist(interaction.guild.id, interaction.channel_id):
-        GuildID = interaction.guild.id
-        UserID = interaction.user.id
-        if not db.checkGuild(GuildID):
+    GuildID = interaction.guild.id
+    UserID = interaction.user.id
+    if not db.checkGuild(GuildID):
             db.insertGuild(GuildID)
+    if checkWhitelist(interaction.guild.id, interaction.channel_id):
         if not db.checkUser(UserID):
             db.insertUser(UserID, timezone.value)
         if not db.checkAttempt(currentYear, UserID):
@@ -193,7 +194,6 @@ async def toggle(interaction: discord.Interaction):
 async def whitelistAdd(interaction: discord.Interaction, channel_id: str):
     GuildID = interaction.guild.id
     if client.get_channel(int(channel_id)) is None:
-        print("FUUUUUUUUUUUUUUUUUUUUCK")
         return await interaction.response.send_message("Invalid Channel ID (channel doesn't exist)")
     channels = loads(db.getChannels(GuildID)[0])
     if channel_id in channels:
