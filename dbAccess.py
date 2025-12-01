@@ -1,38 +1,28 @@
 import mariadb
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
-# Load DB credentials from file
-db_data = ["user", "password", "host", "port", "database"]
-
-with open("../DB-DATA/Whamageddon.txt") as file:
-    for i, line in enumerate(file.readlines()):
-        db_data[i] = line.strip()
-
-# -----------------------
-# Shared connection
-# -----------------------
-conn = mariadb.connect(
-    user=db_data[0],
-    password=db_data[1],
-    host=db_data[2],
-    port=int(db_data[3]),
-    database=db_data[4]
+conn = mariadb.connect( # DB Connection Initiation
+    user=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    host=os.getenv("DB_HOST"),
+    port=int(os.getenv("DB_PORT")),
+    database=os.getenv("DB")
 )
 
-# -----------------------
-# Test function
-# -----------------------
-def test():
+def test(): # Select all from guilds to test db connection
     with conn.cursor() as cur:
         cur.execute("SELECT * FROM guilds WHERE GuildID>0")
         for row in cur:
             print(row)
 
-def getToggle(GuildID):
+def getToggle(GuildID): # Get state of whitelist for guild
     with conn.cursor() as cur:
         cur.execute("SELECT WhitelistEnabled FROM guilds WHERE GuildID=?", (GuildID,))
         return cur.fetchone()[0] == 1
     
-def toggleWhitelist(GuildID):
+def toggleWhitelist(GuildID): # Flip the Boolean value of the WhitelistEnabled of the handed guild
     cur = conn.cursor()
     try:
         # Toggle 0/1
@@ -52,12 +42,12 @@ def toggleWhitelist(GuildID):
     finally:
         cur.close()
 
-def getChannels(GuildID):
+def getChannels(GuildID): # Return all channels whitelisted in the handed guild
     with conn.cursor() as cur:
         cur.execute("SELECT WhitelistedChannels FROM guilds WHERE GuildID=?", (GuildID,))
         return cur.fetchone()
 
-def setChannels(GuildID, Channels):
+def setChannels(GuildID, Channels): # Set the channel whitelist in the guild to the handed jsonified list
     with conn.cursor() as cur:
         cur.execute(
                 "UPDATE guilds SET WhitelistedChannels = ? WHERE GuildID = ?", 
@@ -65,7 +55,7 @@ def setChannels(GuildID, Channels):
             )
         conn.commit()
 
-def getYears(YearID):
+def getYears(YearID): # If a year is handed with the function call select that year otherwise select all
     if YearID:
         with conn.cursor() as cur:
             cur.execute("SELECT * FROM years WHERE YearID=?", (YearID,))
@@ -77,7 +67,7 @@ def getYears(YearID):
             return cur.fetchall()
     
 
-def insertYear(YearID):
+def insertYear(YearID): # Add new year entry into years
     with conn.cursor() as cur:
         cur.execute(
                 "INSERT INTO years (YearID) VALUES (?)", 
@@ -85,7 +75,7 @@ def insertYear(YearID):
             )
         conn.commit()
 
-def setYears(ActiveYear, state):
+def setYears(ActiveYear, state): # Set year active state
     for year in getYears(False):
         if year[0] == ActiveYear:
             with conn.cursor() as cur:
@@ -96,28 +86,22 @@ def setYears(ActiveYear, state):
                 cur.execute("UPDATE years SET Active = FALSE WHERE YearID=?", (year[0],))
                 conn.commit()
 
-# -----------------------
-# Guild functions
-# -----------------------
-def checkGuild(GuildID):
+def checkGuild(GuildID): # Check guild exist
     with conn.cursor() as cur:
         cur.execute("SELECT GuildID FROM guilds WHERE GuildID=?", (GuildID,))
         return cur.fetchone() is not None
 
-def insertGuild(GuildID):
+def insertGuild(GuildID): # Add a guild
     with conn.cursor() as cur:
         cur.execute("INSERT INTO guilds (GuildID) VALUES (?)", (GuildID,))
         conn.commit()
 
-# -----------------------
-# User functions
-# -----------------------
-def checkUser(UserID):
+def checkUser(UserID): # Check user entry exists
     with conn.cursor() as cur:
         cur.execute("SELECT UserID FROM users WHERE UserID=?", (UserID,))
         return cur.fetchone() is not None
 
-def insertUser(UserID, TimeZone):
+def insertUser(UserID, TimeZone): # Add user entry
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO users (UserId, TimeZone) VALUES (?, ?)",
@@ -125,10 +109,7 @@ def insertUser(UserID, TimeZone):
         )
         conn.commit()
 
-# -----------------------
-# Attempt functions
-# -----------------------
-def checkAttempt(Year, UserID):
+def checkAttempt(Year, UserID): # Check attempt exists
     with conn.cursor() as cur:
         cur.execute(
             "SELECT * FROM attempts WHERE YearID=? AND UserID=?",
@@ -136,7 +117,7 @@ def checkAttempt(Year, UserID):
         )
         return cur.fetchone() is not None
 
-def insertAttempt(Year, UserID):
+def insertAttempt(Year, UserID): # Add user attempt
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO attempts (YearID, UserID) VALUES (?, ?)",
@@ -144,7 +125,7 @@ def insertAttempt(Year, UserID):
         )
         conn.commit()
 
-def addLoss(Year, LossDate, LossReason, UserID):
+def addLoss(Year, LossDate, LossReason, UserID): # Add loss to user attempt
     with conn.cursor() as cur:
         cur.execute(
             "UPDATE attempts SET Lost = TRUE, LossDate = ?, LossReason = ? WHERE UserID = ? AND YearID = ?", 
@@ -152,8 +133,13 @@ def addLoss(Year, LossDate, LossReason, UserID):
         )
         conn.commit()
 
-# -----------------------
-# Close connection
-# -----------------------
-def closeConnection():
+def getLoss(userID): # Get loss from user ID
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT Lost, LossDate, LossReason FROM attempts WHERE UserID = ?", 
+            (userID,)
+        )
+        return cur.fetchone()
+        
+def closeConnection(): # Close connection
     conn.close()
